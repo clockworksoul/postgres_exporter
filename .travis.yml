@@ -3,42 +3,43 @@ services:
 - docker
 language: go
 go:
-- '1.7.5'
-# Make sure we have p2 and the postgres client.
+- '1.11'
 before_install:
 - go get -v github.com/mattn/goveralls
-- sudo wget -O /usr/local/bin/p2 https://github.com/wrouesnel/p2cli/releases/download/r4/p2 &&
-  sudo chmod +x /usr/local/bin/p2
-- sudo wget -O /usr/local/bin/docker-compose https://github.com/docker/compose/releases/download/1.9.0-rc4/docker-compose-Linux-x86_64 &&
-  sudo chmod +x /usr/local/bin/docker-compose
+- sudo wget -O /usr/local/bin/p2 https://github.com/wrouesnel/p2cli/releases/download/r4/p2
+  && sudo chmod +x /usr/local/bin/p2
+- sudo wget -O /usr/local/bin/docker-compose https://github.com/docker/compose/releases/download/1.9.0-rc4/docker-compose-Linux-x86_64
+  && sudo chmod +x /usr/local/bin/docker-compose
 - sudo apt-get update && sudo apt-get install postgresql-client-common
-  
 script:
-- make all
-- make docker
-- make test-integration
-- ./concatenate_coverage cover.out cover.test.out cover.integration.out
-- $HOME/gopath/bin/goveralls -coverprofile=cover.out -service=travis-ci
+- "./gh-assets-clone.sh"
+- go run mage.go -v all
+- "$HOME/gopath/bin/goveralls -coverprofile=cover.out -service=travis-ci"
+- go run mage.go docker
 after_success:
-- docker login -e $DOCKER_EMAIL -u $DOCKER_USER -p $DOCKER_PASS
-# Push a tagged build if a tag is found.
-- if [ ! -z "$TRAVIS_TAG" ]; then 
-    docker tag wrouesnel/postgres_exporter:latest wrouesnel/postgres_exporter:$TRAVIS_TAG ;
-    docker push wrouesnel/postgres_exporter:$TRAVIS_TAG ;
-  fi
-# Push a latest version
-- if [ "$TRAVIS_BRANCH" == "master" ]; then docker push wrouesnel/postgres_exporter ; fi
+- docker login -u $DOCKER_USER -p $DOCKER_PASS
+- if [ ! -z "$TRAVIS_TAG" ]; then docker tag wrouesnel/postgres_exporter:latest wrouesnel/postgres_exporter:$TRAVIS_TAG
+  ; docker push wrouesnel/postgres_exporter:$TRAVIS_TAG ; fi
+- if [ "$TRAVIS_BRANCH" == "master" ]; then docker push wrouesnel/postgres_exporter
+  ; fi
+- "./postgres-metrics-get-changes.sh .assets-branch/metriclists"
+- if [ "$TRAVIS_BRANCH" == "master" ]; then ./gh-metrics-push.sh ; fi
 env:
   global:
-  - secure: RfoWQj5tEB/t3XL2tqJW7u7Qscpz1QBOfF9lMFpB4kAUMTtZU0zBbXfMo1JheGoJQQxD/7NLRHhbUWPT2489o3KKpRTQ7RHn3k8n5U7opH01bWX0+l/EPVmhlsKjSDSLGgmxz80j3I6C8ZV3qDUijSx7r90QUNHGbZtV7g+KtoUTpRV0zir/heK6qq9LHWNHbNsJyHK8qHmd6g1UzWIBaZPJ6a/n/rO2jq4uS1JR0VlIJPRF11HOLH8IjFQvVYpN7YbEslxyNsfQJUSP/7CghSLLVWPSATEjMm8a5GJVLc564+nYghm484psEtiMXkZ3n6ie7AT8aJrKfexWrwh2aCc+cK4PiyXrf4euZehZNYogmFCqWzd1LJKcN2uIkpBSuZQDm3e6c4qkkWGpx+RdFWtAMG8IgZLDbcuryxFNzMwHc2CJ009s9Zsa+g7D57csyR5LCZ8YtNGI3g8FmhwpCKvYkfKa9aijUEWyJMyT4Vhd/w7btMTuwYHgUQ85k4ov4Xjz5SNpAGgemig5G5w7PJj4NhGvIBz9weL154x/BFVjHOZZ6Y/bWgJIPoW1KM15x5K8QylWYEBUHtwiyVyXOxHqt6MOX1vYo1L37jMK88IErrfh/VmlxEhtN9wOghk8IudMfFwQtjIwiWlJf218wxMIzUjoyb5/25tU9f2OJrg=
-  - secure: WP96T7yshE03XsPVc9ICbwZXZ6nVsQDCQ9NGKnIEQa4T1Swu5uLVzxjGeowHPykKbKphQmT8inMniBxB48OLc3VVqNxVI+00ppLPEf7n79w2wVbwFOEa6TiOdws+0wOphkeSYc0L+o2aSfoMKJHF+rVW9tmM2tszVjofYHhdWjqloc2pqsfOnqbR7icfpmzMWKyezIE20YOIBsiKZJTKXiZ1SaG9ExkNwuZ7L+HRF1yeI0OdAM4VfEzBK1Gwicy2BtrbyHnl4zgcSoIBmuzo+pNuvqyGmBn3C221M6ki7NoDJDfW5brcvDmiMODWGnka7iW0nt5aUbVtURM8BhWZR0uINo30aYjr4j39UBq8y+mqYV0dp/dMEmy2fa1mogr+DuHUNVSg59Au45AZeom8N6FT03nlg+RcG/tV1skvP/mn9n9CKsyfvC4Rf3jp4+LTiJ9JIch74MecRYVwlpKM+i8s6uDftt3mvxeIYdK+NEMcfwKMv8KTwuxRo/3KRhif7z2cOE+oMbT5POWO19bfboRPCs4xiMTcqpx8dJVs41SacY52PPgjFSnyVrKvzAyjn6mePjLhpoPZueHZuJYPNa9QC8JcASMlCI7lf2Eq+2Dmp2JxmndkRs/cIfHgmO4gtiNM7Vb/rlML1D/8LYPWU/Rdp82/yDffC0ugMNovXt0=
-  - secure: RRQH4Tr94OblZoqls50BIoyK1OvK9fALs4pAq1Uk5dksY1NWnomheQzOaHzbVfMfXc4zXAzppZIqxUDGn8GiSLbtJL6pnxsxYNGoCGdS8lMjjKWXbCAs8TBJobi3krOOjqgbhOWTpyluTEShnBcg7CjrRQUa/ChS3uE5kl21/4eIl9Be6Q08Eqm3p1yvMAyAgIL6Y6oPAAtBa6zIsi2MSNlryz3RKHJO7AheilppYx3E8B03A+a/oqvTTcw6w/RwBYxB8MYfSLC0jSssZz5pUSX/byUaklGFhQLnKAzJyhrMOvRyMVcO4PHaLgVi1eAKQz6eLQh7uEiIqKh19cuvTbZHDgu8zMpLDTxOW9U95e4kbjOZ5pWZ7E5QTrb24RZIt42JGbmme7PWOvy3zNbWHwfwiOF1qwYwISUcj2KFCpes8mDGt6iv46LfdlU0uoZdZu3MAiTiW0u2SD5hIeFq4XYesPtkS/TKFoAbB5Tu1qbxdmYu5NqmfvmxsmeNEm4inFJ5ap3fRRCVo668Z6qRMuQ1URcEfOz8iEftP9CnwSOXRuiuMo+W9GgckRuDZcPyQMCftq8+PhB+SjK57zrAd4Kxqf6kVHV16tcWqmFjfJJUFqmL+gpjT/VMEVDY2FOnbOARjkeLTjVC4dADBjxfJ6wmlLrfHdUm4GinbaHq0iA=
+  - DOCKER_USER=wrouesnel
+  - GIT_ASSETS_BRANCH=assets
+  - secure: sl1d85bipYhHlHTZ4fwkWrZ07px+lPMQrKPaiyQ9i5tylQAcMqwDroK0pb5HIyIl6PEx72D5atQWnEqluA/0rFt3SxqxtvT+wj6CPmmZfh2fUSol7I07QzAsi95d7q0fg2mStDdfs134Uu+JjxGKEGRu2SL3Zq+LKpaNPtIZVBqrCYYAySLiEJx+DEOfwt1ktn/qHapV5d5FYdfd7trfV411NITyA8AGk6Gy0HztRDGbfcoLOsM+CnVi1p59uUL9ck/hL2DbsB44qDKeWQaruMLwWNDETu+EVwHlDEHGBPb+wdDALnW+Ts3CAUpuGXftHV35XLLbH7NXOnS6QiH938ycfPf3INY51lV7cL6bNtFWDKMAIcPf4wQO2ts4qFhuiUeFdo7qrC6uEI5Fy/sELBgWl4O2opVY3Tf8s8OO/DSb4Cxy6solKgaETkl6EcShaEj7H/Cn7vT0+SLKCpSQlvVQXDLGg6eZTyBA+OWNElE0UvWV7znxWBlke+9NARIl4FcB/SY4A6v1ztpandHWMjNLLxZyVxFEswfU9hvf0qL9SW38OJ5cIK8pvmH2QWG7Xg/j0B3o7SHMdsM+pcSwrzsM6OENgvxPNBb/DinmMyQKxTCVcVmMo7uIS89RIylvN79E8U6NagdFkiLfa3xEHq8zCzEkHi3bsLRvytgT2X0=
+  - secure: 1JL8KcgkLueQ2DLL81UMYzIHX3qm1TjcO40QL2ZOfdirFWBshOiTwTXeWj5qZaGBzoVV5ezhyZaBY+t3/pObslm20ERce879hEw+TSnKN30wfBqNyv2r7rfsbKkXauultb8RNu9y/9XS0DCEyGdSTQh9UaCa4z6ulu39hffDddrGQjwW1P2gT3Npu1cDYd1iSO36rrA6yXjaoN8OW8U4znKVjOGnarxxFnXJkiYv2PfIrZA6BpL3d0syJtWDyr1G+B48oK9VK+fBV9K0G0E67fJvqB3ANXN3D41il3S+cs8Ulcd7hF+LWxpMsP2r1/XHYSDw3Iiz0QFKKzoyxNdipvdjAVDxrWylyLnmTBYzXk41kRv88mKVLBQM1dbzsLXYcsE2pgIZxxq9OHGZ5CUJ8t0oz5D9oXMUy4QOMQ36jZdvD048aB7DGp4EF2J7ILIhUZrHHErOlXotnsYvNMvamNwqB5Jg4NC+y5QHxERJ+HK5oPrLy+iCb2kmWatSB6vO5OeX/F7IRiqtZghJRddEeMdQ1a6H0GeV1BF7Hx8j3TPMJ66qSAb0RA1lQQCN4l+/YMEWmQD8amf1O5NY116waf+Co4qkvt3c4QctQOMwu3Ra7uLlp6GG61OmHhPTCGSv/LZp6CVtROLY5IltKv7qBzksjvXkO1SzhJOxi0JkZmg=
+branches:
+  except:
+  - assets
 deploy:
   skip_cleanup: true
   provider: releases
   api_key:
     secure: rwlge/Rs3wnWyfKRhD9fd5GviVe0foYUp20DY3AjKdDjhtwScA1EeR9QHOkB3raze52en0+KkpqlLCWbt3q4CRT7+ku1DNKhd6VWALdTZ1RPJYvNlU6CKJdRnWUJsECmSBsShXlbiYR8axqNVedzFPFGKzS9gYlFN6rr7pez/JZhxqucopZ6I+TkRHMELrFXyQK7/Y2bNRCLC4a+rGsjKeLLtYXbRXCmS0G4BSJEBRk7d69fIRzBApCMfrcLftgHzPuPth616yyUusQSCQYvaZ5tlwrPP8/E0wG3SVJVeDCMuDOSBZ9M6vNzR8W8VR/hxQamegn1OQgC5kNOaLZCTcJ5xguRouqb+FNFBqrd/Zi6vESo7RiVLULawzwxkh9sIPa3WZYDb3VK/Z/cpggUeR7wAu0S5ZYEvJHRefIZpqofZEHzDE3Blqp5yErz05e/zmjpd6HHK3f/UHmRRYfbulkvGT3aL/dlq5GcFvuxVC/vTL2VPvg9cGbqtf7PakC5IhoHpDs35tOyLxifOBLHvkwtGSxEfsCohIG8Hz2XFD83EsxgOiKSXVPLNd6yxjdqZj7OeAKFFU3bzGndnRbDIXaf987IN1imgUtP6wegfImoRStqxN4gEwwIMFsZCF86Ug4eLhlajLbWhudriDxDPBM/F9950aVxLwmWh9l5cRI=
-  file: postgres_exporter
+  file_glob: true
+  file: release/*
   on:
     tags: true
     branch: master
